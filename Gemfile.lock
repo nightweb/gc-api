@@ -63,6 +63,7 @@ GEM
     thread_safe (0.3.4)
     typhoeus (0.7.0)
       ethon (>= 0.7.1)
+    yajl-ruby (1.2.1)
 
 PLATFORMS
   ruby
@@ -72,3 +73,4 @@ DEPENDENCIES
   pry
   signet
   typhoeus
+  yajl-ruby

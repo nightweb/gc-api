@@ -8,6 +8,7 @@ require_relative 'entities/event_time'
 require 'signet/oauth_2/client'
 require 'faraday'
 require 'typhoeus/adapters/faraday'
+require 'json'
 
 module GCAPI
   class GoogleCalendarError < Exception; end
@@ -43,14 +44,15 @@ module GCAPI
       @authorization.fetch_access_token!
     end
 
-    def calendars
-      request(:get, 'users/me/calendarList', {})
+    def active?
+      !@authorization.expired?
     end
 
-    protected
+    def client_id
+      @authorization.client_id
+    end
 
-    def request(method, path, data)
-      payload = data.to_json if data && data.is_a?(Hash) && data.any? or nil
+    def request(method, path, data = nil)
       path = path.to_s
       method = method
       raise GoogleCalendarAttributesError.new("Wrong HTTP Method") unless [:get, :post, :put, :delete].include?(method.to_sym)
@@ -62,20 +64,30 @@ module GCAPI
       response = @connection.send(method.to_sym) do |req|
         req.url path
         req.headers['Authorization'] = Signet::OAuth2.generate_bearer_authorization_header(@authorization.access_token)
-        #req.headers['Content-Type'] = 'application/json'
-        #req.body = payload
-      end
+        req.headers['Content-Type'] = 'application/json'
 
+        req.body = Yajl::Encoder.encode(data) if data
+      end
+      puts response.body
       begin
-        result = JSON.parse(response.body)
-      rescue
-        raise GoogleCalendarError.new("Error on requesting content!")
+        result = JSON.parse(response.body, symbolize_names: true)
+      rescue Exception => e
+        #raise GoogleCalendarError.new("Error on requesting content!")
+        result = nil
       end
       result
     end
 
     def refresh_token
       @authorization.refresh!
+    end
+
+    def to_s
+      "Authorization: #{active?}. Access token present: #{@authorization.access_token}. Time left: #{@authorization.expires_in}"
+    end
+
+    def inspect
+      to_s
     end
   end
 end
